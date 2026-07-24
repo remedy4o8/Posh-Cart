@@ -45,10 +45,23 @@ data "aws_iam_policy_document" "trust" {
       values   = ["sts.amazonaws.com"]
     }
 
+    # AWS requires a GitHub OIDC trust to condition on `sub` (or
+    # job_workflow_ref) - it rejects a policy scoped only on repository/ref.
+    # This account emits the immutable-ID subject form:
+    #   repo:owner@<ownerID>/repo@<repoID>:ref:refs/heads/<branch>
+    # so we pin owner name, repo name and branch, and wildcard only the numeric
+    # IDs (which map 1:1 to the names). The explicit `repository` match below is
+    # belt-and-suspenders.
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:repository"
+      values   = ["${var.github_owner}/${var.github_repo}"]
+    }
+
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_owner}/${var.github_repo}:ref:refs/heads/${var.github_branch}"]
+      values   = ["repo:${var.github_owner}@*/${var.github_repo}@*:ref:refs/heads/${var.github_branch}"]
     }
   }
 }
