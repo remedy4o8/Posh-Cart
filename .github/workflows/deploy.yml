@@ -1,0 +1,53 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+# Required for OIDC: id-token lets the job request a GitHub token; contents:read
+# is all the checkout needs.
+permissions:
+  id-token: write
+  contents: read
+
+# Placeholders below get their real values from `terraform output`:
+#   ROLE_ARN  <- deploy_role_arn
+#   BUCKET    <- bucket_name
+#   DIST_ID   <- distribution_id
+env:
+  AWS_REGION: us-west-2
+  ROLE_ARN: arn:aws:iam::165835313592:role/github-deploy-posh-cart
+  BUCKET: posh-andytangpham-com-remedys-cart
+  DIST_ID: E1UBK8HTWIQ1GD
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Sync only index.html. --cache-control stamps public,max-age=300 onto the
+      # object so CloudFront and browsers both honor the 5-minute window.
+      # --exclude keeps repo scaffolding out of the bucket.
+      - name: Sync to S3
+        run: |
+          aws s3 sync . s3://${{ env.BUCKET }} \
+            --exclude ".git/*" \
+            --exclude ".github/*" \
+            --exclude ".gitignore" \
+            --exclude "infra/*" \
+            --exclude "README.md" \
+            --cache-control "public,max-age=300"
+
+      # Belt-and-suspenders given the 5-min TTL: makes a push visible at the
+      # edge immediately. "/*" counts as one path; first 1000/month are free.
+      - name: Invalidate CloudFront
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ env.DIST_ID }} \
+            --paths "/*"

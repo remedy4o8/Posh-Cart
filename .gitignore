@@ -1,0 +1,12 @@
+# Terraform
+infra/.terraform/
+infra/*.tfstate
+infra/*.tfstate.*
+infra/crash.log
+infra/crash.*.log
+
+# terraform.tfvars holds no secrets here (just repo/owner/role names), but
+# state does contain resource metadata - never commit it. tfvars is left
+# tracked intentionally so the config is reproducible; remove the next line
+# if you'd rather keep it local.
+# infra/terraform.tfvars

@@ -1,0 +1,20 @@
+# Copy to terraform.tfvars and fill in. Only github_owner is strictly required;
+# the rest have sane defaults.
+
+# REQUIRED - the GitHub org/user that owns the repo.
+github_owner = "YOUR_GITHUB_USERNAME"
+
+# Confirm this matches the ACTUAL GitHub repo slug. Your local folder is
+# "remedy" but your OIDC template used "remedys-cart". Whichever the repo is
+# really named on GitHub, put it here - the deploy role will not authenticate
+# otherwise.
+github_repo = "remedys-cart"
+
+# Flip to false if a GitHub OIDC provider already exists in this account.
+create_oidc_provider = true
+
+# Override only if the defaults don't suit you.
+# aws_region       = "us-west-2"
+# domain_name      = "posh.andytangpham.com"
+# parent_zone_name = "andytangpham.com"
+# bucket_name      = "posh-andytangpham-com-remedys-cart"
