@@ -26,6 +26,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # TEMPORARY debug: print the exact OIDC claims GitHub issues, so we can
+      # match the IAM trust policy byte-for-byte. Remove once auth works.
+      - name: Debug OIDC claims
+        run: |
+          curl -sS "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" -o token.json
+          python3 -c "import json,base64;t=json.load(open('token.json'))['value'];p=t.split('.')[1];p+='='*(-len(p)%4);d=json.loads(base64.urlsafe_b64decode(p));print('SUB:',d['sub']);print('AUD:',d['aud']);print('REPO:',d.get('repository'));print('REF:',d.get('ref'))"
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ env.ROLE_ARN }}
