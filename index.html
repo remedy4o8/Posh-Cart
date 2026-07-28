@@ -109,6 +109,9 @@
       min-height: 36px;
     }
     .variants button:hover { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+    .variants button.soon { border-style: dashed; color: var(--muted); }
+    .variants button.soon:hover { background: var(--accent-lo); border-color: var(--accent); color: var(--accent-hi); }
+    .btn-refresh[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
     .cart { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); display: flex; flex-direction: column; max-height: calc(100vh - 7.5rem); overflow: hidden; }
     .cart-head { padding: 1.125rem 1.25rem; display: flex; align-items: center; justify-content: space-between; }
     .cart-head h2 { font-size: 1.0625rem; font-weight: 700; }
@@ -215,6 +218,7 @@
     </div>
     <div class="header-actions">
       <button id="themeToggle" class="btn-theme" aria-label="Switch color theme"><i class="fas fa-moon" aria-hidden="true"></i></button>
+      <button id="previewToggle" class="btn-refresh" aria-pressed="false" title="Show upcoming items you can pre-add to your cart"><i class="fas fa-eye" aria-hidden="true"></i> <span>Preview</span></button>
       <button id="refreshProducts" class="btn-refresh"><i class="fas fa-sync-alt" aria-hidden="true"></i> <span>Refresh</span></button>
     </div>
   </header>
@@ -266,6 +270,8 @@
     let allProducts = [];
     let selectedSizes = ['show_all'];
     let fetching = false;
+    let previewMode = false;
+    try { previewMode = localStorage.getItem('previewMode') === '1'; } catch {}
     const loadState = () => {
       try {
         const c = JSON.parse(localStorage.getItem('cartItems'));
@@ -370,7 +376,7 @@
       const frag = document.createDocumentFragment();
       let shown = 0;
       allProducts.forEach(p => {
-        const variants = (p.variants || []).filter(v => v.available && (showAll || selectedSizes.includes(sizeOf(p, v))));
+        const variants = (p.variants || []).filter(v => (previewMode || v.available) && (showAll || selectedSizes.includes(sizeOf(p, v))));
         if (!variants.length) return;
         shown++;
         const card = document.createElement('div');
@@ -399,7 +405,11 @@
         variants.forEach(v => {
           const b = document.createElement('button');
           b.textContent = sizeOf(p, v);
-          b.setAttribute('aria-label', `Add ${p.title}, size ${sizeOf(p, v)}, to cart`);
+          if (!v.available) {
+            b.classList.add('soon');
+            b.title = 'Not yet available. Adds to your cart to pre-fill for the drop.';
+          }
+          b.setAttribute('aria-label', `Add ${p.title}, size ${sizeOf(p, v)}, to cart${v.available ? '' : ' (pre-fill for the drop)'}`);
           b.addEventListener('click', () => addVariantToCart(p, v));
           vwrap.appendChild(b);
         });
@@ -409,9 +419,14 @@
       });
       container.replaceChildren(frag);
       if (!shown) {
-        const msg = allProducts.length
-          ? '<div class="notice"><strong>Nothing matches those sizes</strong>Try selecting more sizes, or tap Show All in the filter.</div>'
-          : '<div class="notice"><strong>The sale hasn\'t opened yet</strong>Items appear here once the VIP shop goes live. Tap Refresh to check again.</div>';
+        let msg;
+        if (!allProducts.length) {
+          msg = '<div class="notice"><strong>The sale hasn\'t opened yet</strong>Items appear here once the VIP shop goes live. Tap Refresh to check again.</div>';
+        } else if (!previewMode) {
+          msg = '<div class="notice"><strong>Nothing on sale yet</strong>These items aren\'t purchasable yet. Tap <strong>Preview</strong> (top right) to see upcoming items and pre-fill your cart, or adjust your size filter.</div>';
+        } else {
+          msg = '<div class="notice"><strong>Nothing matches those sizes</strong>Try selecting more sizes, or tap Show All in the filter.</div>';
+        }
         container.innerHTML = msg;
       }
     };
@@ -592,6 +607,16 @@
         window.open(buildCartUrl(), '_blank', 'noopener');
       });
       document.getElementById('refreshProducts').addEventListener('click', fetchAllProducts);
+      // Preview toggle: show upcoming (not-yet-available) items and allow pre-adding them to the cart
+      const previewBtn = document.getElementById('previewToggle');
+      previewBtn.setAttribute('aria-pressed', previewMode ? 'true' : 'false');
+      previewBtn.addEventListener('click', () => {
+        previewMode = !previewMode;
+        try { localStorage.setItem('previewMode', previewMode ? '1' : '0'); } catch {}
+        previewBtn.setAttribute('aria-pressed', previewMode ? 'true' : 'false');
+        showNotification(previewMode ? 'Preview on: upcoming items shown. Tap a size to pre-fill.' : 'Preview off.', 'purple');
+        displayProducts();
+      });
     });
   </script>
 </body>
